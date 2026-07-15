@@ -1,0 +1,12 @@
+services:
+  lindas-mcp:
+    build: ./lindas-mcp
+    # image: lindas-mcp:0.1.0
+    container_name: lindas-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      - LINDAS_TRANSPORT=http
+      - LINDAS_PORT=8000
+      - LINDAS_DEFAULT_LANGUAGE=de
+    restart: unless-stopped

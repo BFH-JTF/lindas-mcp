@@ -1,0 +1,32 @@
+{
+  "name": "lindas-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for LINDAS (Swiss Federal Archives Linked Data platform)",
+  "license": "MIT",
+  "author": "Jan Frecè",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lindas-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/index.ts --transport http",
+    "start": "node dist/index.js",
+    "start:http": "node dist/index.js --transport http",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5.5",
+    "vitest": "^2"
+  }
+}
