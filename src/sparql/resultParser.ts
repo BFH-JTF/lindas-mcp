@@ -161,3 +161,135 @@ export function parseSearchResults(
     description: parseBindingValue(b, "description") ?? "",
   }));
 }
+
+export interface IriInfo {
+  iri: string;
+  label: string;
+  types: string[];
+}
+
+export function parseResolveIri(result: SparqlResult, iri: string): IriInfo {
+  const bindings = result.results.bindings;
+  if (bindings.length === 0) {
+    return { iri, label: "", types: [] };
+  }
+  const label = parseBindingValue(bindings[0], "label") ?? "";
+  const types = bindings
+    .map((b) => parseBindingValue(b, "type"))
+    .filter((t): t is string => t !== undefined);
+  return { iri, label, types };
+}
+
+export interface DimensionSummary {
+  path: string;
+  name: string;
+  datatype: string;
+  valueCount: string;
+  hasNestedShape: boolean;
+}
+
+export function parseDimensionSummary(
+  result: SparqlResult
+): DimensionSummary[] {
+  return result.results.bindings.map((b) => {
+    const hasNode = parseBindingValue(b, "hasNode");
+    const hasIn = parseBindingValue(b, "hasIn");
+    const nodeKind = parseBindingValue(b, "nodeKind");
+    const datatype = parseBindingValue(b, "datatype") ?? "";
+    const hasNestedShape = Boolean(
+      hasNode || hasIn || nodeKind === "http://www.w3.org/ns/shacl#IRI" || !datatype
+    );
+    return {
+      path: parseBindingValue(b, "path") ?? "",
+      name: parseBindingValue(b, "name") ?? "",
+      datatype,
+      valueCount: parseBindingValue(b, "valueCount") ?? "0",
+      hasNestedShape,
+    };
+  });
+}
+
+export interface MunicipalityInfo {
+  iri: string;
+  name: string;
+}
+
+export function parseMunicipalities(result: SparqlResult): MunicipalityInfo[] {
+  return result.results.bindings.map((b) => ({
+    iri: parseBindingValue(b, "municipality") ?? "",
+    name: parseBindingValue(b, "name") ?? "",
+  }));
+}
+
+export interface DistrictInfo {
+  iri: string;
+  name: string;
+}
+
+export function parseDistricts(result: SparqlResult): DistrictInfo[] {
+  return result.results.bindings.map((b) => ({
+    iri: parseBindingValue(b, "district") ?? "",
+    name: parseBindingValue(b, "name") ?? "",
+  }));
+}
+
+export interface CubeMetadata {
+  title: string;
+  description: string;
+  publisher: string;
+  license: string;
+  status: string;
+  dateCreated: string;
+  dateModified: string;
+  datePublished: string;
+}
+
+export function parseCubeMetadata(result: SparqlResult): CubeMetadata {
+  const binding = result.results.bindings[0];
+  if (!binding) {
+    return {
+      title: "", description: "", publisher: "", license: "",
+      status: "", dateCreated: "", dateModified: "", datePublished: "",
+    };
+  }
+  return {
+    title: parseBindingValue(binding, "title") ?? "",
+    description: parseBindingValue(binding, "description") ?? "",
+    publisher: parseBindingValue(binding, "publisher") ?? "",
+    license: parseBindingValue(binding, "license") ?? "",
+    status: parseBindingValue(binding, "status") ?? "",
+    dateCreated: parseBindingValue(binding, "dateCreated") ?? "",
+    dateModified: parseBindingValue(binding, "dateModified") ?? "",
+    datePublished: parseBindingValue(binding, "datePublished") ?? "",
+  };
+}
+
+export interface CubeVersion {
+  uri: string;
+  dateModified: string;
+  status: string;
+}
+
+export function parseCubeVersions(result: SparqlResult): CubeVersion[] {
+  return result.results.bindings.map((b) => ({
+    uri: parseBindingValue(b, "version") ?? "",
+    dateModified: parseBindingValue(b, "dateModified") ?? "",
+    status: parseBindingValue(b, "status") ?? "",
+  }));
+}
+
+export interface CountByDimensionItem {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export function parseCountByDimension(
+  result: SparqlResult
+): CountByDimensionItem[] {
+  return result.results.bindings.map((b) => ({
+    value: parseBindingValue(b, "dimValue") ?? "",
+    label: parseBindingValue(b, "dimLabel") ?? parseBindingValue(b, "dimValue") ?? "",
+    count: parseInt(parseBindingValue(b, "count") ?? "0", 10),
+  }));
+}

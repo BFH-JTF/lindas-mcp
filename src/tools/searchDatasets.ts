@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, LINDAS_VOCAB } from "../config.js";
 import { buildSearchDatasetsQuery } from "../sparql/queryBuilder.js";
 import { executeSparqlQuery, SparqlError } from "../sparql/client.js";
 import { parseSearchResults } from "../sparql/resultParser.js";
@@ -12,6 +12,13 @@ export const searchDatasetsToolDef = {
     properties: {
       query: { type: "string", description: "Text to search for" },
       limit: { type: "integer", default: 20, minimum: 1, maximum: 50 },
+      language: { type: "string", default: "de", enum: ["de", "fr", "it", "en"] },
+      status: {
+        type: "string",
+        default: "Published",
+        enum: ["Published", "Draft", "all"],
+        description: "Filter by publication status: 'Published' (default), 'Draft', or 'all'",
+      },
     },
     required: ["query"],
   },
@@ -31,14 +38,17 @@ export async function handleSearchDatasets(args: any): Promise<string> {
       Math.max(args?.limit ?? 20, 1),
       CONFIG.maxResultLimit
     );
+    const language = args?.language ?? CONFIG.defaultLanguage;
+    const statusParam = args?.status ?? "Published";
+    const statusFilter = statusParam === "all" ? undefined : LINDAS_VOCAB[`status${statusParam}` as keyof typeof LINDAS_VOCAB] ?? undefined;
 
     process.stderr.write(
-      `[LINDAS-MCP] INFO  search_datasets query="${queryText}" limit=${limit}\n`
+      `[LINDAS-MCP] INFO  search_datasets query="${queryText}" limit=${limit} lang=${language} status=${statusParam}\n`
     );
 
     const start = Date.now();
     const result = await executeSparqlQuery(
-      buildSearchDatasetsQuery(queryText, limit)
+      buildSearchDatasetsQuery(queryText, limit, language, statusFilter)
     );
     const elapsed = Date.now() - start;
     const results = parseSearchResults(result);

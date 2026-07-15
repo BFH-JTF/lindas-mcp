@@ -1,3 +1,4 @@
+import { CONFIG } from "../config.js";
 import { buildCubeStructureQuery } from "../sparql/queryBuilder.js";
 import { executeSparqlQuery, SparqlError } from "../sparql/client.js";
 import { parseCubeStructure } from "../sparql/resultParser.js";
@@ -12,6 +13,11 @@ export const getCubeStructureToolDef = {
       cube_uri: {
         type: "string",
         description: "The URI of the cube (from list_cubes results)",
+      },
+      language: {
+        type: "string",
+        default: "de",
+        enum: ["de", "fr", "it", "en"],
       },
     },
     required: ["cube_uri"],
@@ -33,12 +39,13 @@ export async function handleGetCubeStructure(args: any): Promise<string> {
         message: "cube_uri must be a valid URI starting with http",
       });
     }
+    const language = args?.language ?? CONFIG.defaultLanguage;
 
     process.stderr.write(
-      `[LINDAS-MCP] INFO  get_cube_structure cube_uri=${cubeUri}\n`
+      `[LINDAS-MCP] INFO  get_cube_structure cube_uri=${cubeUri} lang=${language}\n`
     );
 
-    const result = await executeSparqlQuery(buildCubeStructureQuery(cubeUri));
+    const result = await executeSparqlQuery(buildCubeStructureQuery(cubeUri, language));
     const properties = parseCubeStructure(result);
 
     return JSON.stringify(

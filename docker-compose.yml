@@ -1,7 +1,7 @@
 services:
   lindas-mcp:
     build: ./lindas-mcp
-    # image: lindas-mcp:0.1.0
+    # image: lindas-mcp
     container_name: lindas-mcp
     ports:
       - "8000:8000"
@@ -9,4 +9,9 @@ services:
       - LINDAS_TRANSPORT=http
       - LINDAS_PORT=8000
       - LINDAS_DEFAULT_LANGUAGE=de
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped

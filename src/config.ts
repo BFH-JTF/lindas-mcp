@@ -19,6 +19,8 @@ export const LINDAS_VOCAB = {
   canton: "https://schema.ld.admin.ch/Canton",
   municipality: "https://schema.ld.admin.ch/Municipality",
   district: "https://schema.ld.admin.ch/District",
+  statusPublished: "https://ld.admin.ch/vocabulary/CreativeWorkStatus/Published",
+  statusDraft: "https://ld.admin.ch/vocabulary/CreativeWorkStatus/Draft",
 } as const;
 
 export function prefixBlock(): string {

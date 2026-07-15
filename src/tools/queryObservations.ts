@@ -9,7 +9,7 @@ import { parseObservations } from "../sparql/resultParser.js";
 export const queryObservationsToolDef = {
   name: "query_observations",
   description:
-    "Query observations from a data cube with optional filtering and pagination. ALWAYS call get_cube_structure first to learn the cube's dimension and measure paths. Pass dimension paths in the 'dimensions' array and measure paths in the 'measures' array. Use get_dimension_values to find valid filter values.",
+    "Query observations from a data cube with optional filtering and pagination. ALWAYS call get_cube_structure first to learn the cube's dimension and measure paths. Pass dimension paths in the 'dimensions' array and measure paths in the 'measures' array. Use get_dimension_values to find valid filter values. Set resolve_labels to true to automatically resolve IRI values to human-readable labels.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -39,6 +39,11 @@ export const queryObservationsToolDef = {
           },
           required: ["dimension", "value"],
         },
+      },
+      resolve_labels: {
+        type: "boolean",
+        default: false,
+        description: "If true, automatically resolve IRI dimension values to human-readable labels via schema:name",
       },
       limit: { type: "integer", default: 50, minimum: 1, maximum: 500 },
       offset: { type: "integer", default: 0, minimum: 0 },

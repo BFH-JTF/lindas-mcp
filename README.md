@@ -90,6 +90,8 @@ node dist/index.js --transport http --port 3000
 
 The server exposes the MCP Streamable HTTP endpoint at `http://127.0.0.1:3000/mcp`.
 
+In HTTP mode, each client session gets its own MCP server instance. The server tracks sessions via the `Mcp-Session-Id` header.
+
 ### MCP Inspector
 
 To inspect the server interactively, open the MCP Inspector and connect to:
@@ -120,18 +122,66 @@ For HTTP mode in opencode, configure `opencode.json`:
 }
 ```
 
+### LibreChat / Docker
+
+Build the Docker image and add it to your `docker-compose.yml`:
+
+```yaml
+services:
+  lindas-mcp:
+    image: lindas-mcp
+    container_name: lindas-mcp
+    environment:
+      - LINDAS_TRANSPORT=http
+      - LINDAS_PORT=8000
+      - LINDAS_DEFAULT_LANGUAGE=de
+    restart: unless-stopped
+    # ports:                    # Only needed for host access
+    #   - "8000:8000"
+```
+
+Then in LibreChat's config:
+
+```yaml
+mcpServers:
+  lindas:
+    type: streamable-http
+    url: http://lindas-mcp:8000/mcp
+```
+
+Make sure both containers share the same Docker network.
+
 ## Available Tools
+
+### Discovery & Search
 
 | Tool | Description | Key Parameters |
 |---|---|---|
 | `list_cubes` | List available data cubes | `limit`, `offset` |
-| `get_cube_structure` | Get dimensions/measures of a cube | `cube_uri` |
-| `get_dimension_values` | Get distinct values for a dimension | `cube_uri`, `dimension_path`, `language` |
-| `query_observations` | Query observations with filters | `cube_uri`, `dimensions`, `measures`, `filters`, `limit`, `offset` |
-| `count_observations` | Count observations (check size before query) | `cube_uri`, `filters` |
-| `get_cantons` | List all 26 Swiss cantons with IRIs | `language` |
-| `resolve_geography` | Resolve a place name to its LINDAS IRI | `name`, `language` |
 | `search_datasets` | Full-text search across cube titles/descriptions | `query`, `limit` |
+| `get_cube_metadata` | Get publisher, license, status, temporal coverage, and other metadata for a cube | `cube_uri` |
+| `get_cube_versions` | List all versions of a cube | `cube_uri` |
+| `get_cube_structure` | Get dimensions/measures/datatypes of a cube | `cube_uri` |
+| `get_dimension_summary` | Get all dimensions with value counts and available ranges — single-call overview instead of calling `get_dimension_values` for each dimension separately | `cube_uri`, `language` |
+
+### Querying
+
+| Tool | Description | Key Parameters |
+|---|---|---|
+| `query_observations` | Query observations with filters, pagination, and optional label resolution | `cube_uri`, `dimensions`, `measures`, `filters`, `resolve_labels`, `limit`, `offset`, `language` |
+| `count_observations` | Count observations (check size before query) | `cube_uri`, `filters` |
+| `count_observations_by_dimension` | Break down observation counts by dimension values (e.g., how many per canton per year) | `cube_uri`, `dimension`, `filters`, `limit`, `language` |
+| `get_page_info` | Get pagination metadata for a query — total count, hasMore, nextPageOffset | `cube_uri`, `dimensions`, `measures`, `filters`, `limit`, `offset` |
+
+### Geography
+
+| Tool | Description | Key Parameters |
+|---|---|---|
+| `get_cantons` | List all 26 Swiss cantons with IRIs and names | `language` |
+| `get_municipalities` | List Swiss municipalities with IRIs and names (optionally filtered by canton) | `canton_iri`, `language` |
+| `get_districts` | List Swiss districts with IRIs and names (optionally filtered by canton) | `canton_iri`, `language` |
+| `resolve_geography` | Resolve a place name to its LINDAS IRI | `name`, `language` |
+| `resolve_iri` | Look up a LINDAS IRI to get its label and type | `iri`, `language` |
 
 ### Resources
 
@@ -146,20 +196,37 @@ For HTTP mode in opencode, configure `opencode.json`:
 
 The recommended workflow for an LLM using this server:
 
-1. **`search_datasets`** — Find cubes matching the user's topic
+1. **`search_datasets`** or **`list_cubes`** — Find cubes matching the user's topic
 2. **`get_cube_structure`** — Inspect the cube's dimensions and measures
-3. **`get_dimension_values`** — Discover valid filter values for key dimensions
+3. **`get_dimension_summary`** — Get a quick overview of all dimensions with value counts (replaces calling `get_dimension_values` for each dimension separately)
 4. **`resolve_geography`** — If the user mentions a place name, resolve it to an IRI
-5. **`count_observations`** — Check how many results the query will return
-6. **`query_observations`** — Retrieve the actual data
+5. **`resolve_iri`** — If query results contain opaque IRIs, look up their labels
+6. **`count_observations`** — Check how many results the query will return
+7. **`query_observations`** — Retrieve the data (use `resolve_labels: true` to get human-readable labels instead of IRIs)
 
-For geographic comparisons, use **`get_cantons`** to list all canton IRIs.
+For geographic comparisons, use **`get_cantons`**, **`get_municipalities`**, or **`get_districts`** to list geographic entities with their IRIs.
+
+## `resolve_labels` Feature
+
+When `query_observations` is called with `resolve_labels: true`, IRI-valued dimensions are automatically joined to their `schema:name` labels. Instead of receiving:
+
+```json
+{ "canton": { "value": "https://ld.admin.ch/canton/1", "label": "https://ld.admin.ch/canton/1" } }
+```
+
+You receive:
+
+```json
+{ "canton": { "value": "https://ld.admin.ch/canton/1", "label": "Zürich" } }
+```
+
+This makes results immediately understandable without additional lookups.
 
 ## Development
 
 ```bash
 npm run dev          # Start stdio transport with tsx (hot reload)
-npm run dev:http      # Start HTTP transport with tsx (hot reload)
+npm run dev:http     # Start HTTP transport with tsx (hot reload)
 npm run build        # Compile with tsc
 npm start            # Run compiled stdio server
 npm run start:http   # Run compiled HTTP server
@@ -171,7 +238,7 @@ npm run test:watch   # Watch mode
 
 ```
 src/
-├── index.ts              # MCP server entry point
+├── index.ts              # MCP server entry point (stdio + HTTP)
 ├── config.ts             # Configuration constants
 ├── sparql/
 │   ├── client.ts         # SPARQL HTTP client + SparqlError
@@ -191,11 +258,12 @@ tests/
 
 ## Notes
 
-- All logging goes to **stderr** (stdout is reserved for the MCP protocol).
+- All logging goes to **stderr** (stdout is reserved for the MCP protocol in stdio mode).
 - User input interpolated into SPARQL is escaped to prevent injection.
 - Result limit is capped at 500 to protect LLM context windows.
 - Labels are fetched via `schema:name` with language filtering; IRI-valued dimensions fall back to the IRI itself if no label is found.
 - The `search_datasets` tool uses `CONTAINS` filters on `schema:name` and `schema:description` (the Stardog `textMatch` predicate is not supported on the public LINDAS endpoint).
+- In HTTP mode, each client session gets its own MCP server instance. Sessions are tracked via the `Mcp-Session-Id` header and cleaned up on disconnect.
 
 ## License
 

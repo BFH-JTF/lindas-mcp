@@ -219,6 +219,10 @@ async function main() {
       }
     };
 
+    app.get("/health", (_req, res) => {
+      res.json({ status: "ok", sessions: transports.size });
+    });
+
     app.post("/mcp", (req, res) => {
       handleSessionRequest(req, res, req.body);
     });
@@ -235,6 +239,20 @@ async function main() {
         `[LINDAS-MCP] INFO  lindas-mcp server started on http://${host}:${port}/mcp (streamable-http)\n`
       );
     });
+
+    const shutdown = () => {
+      process.stderr.write("[LINDAS-MCP] INFO  Shutting down...\n");
+      for (const [, transport] of transports) {
+        transport.close().catch(() => {});
+      }
+      httpServer.close(() => {
+        process.stderr.write("[LINDAS-MCP] INFO  Server stopped\n");
+        process.exit(0);
+      });
+      setTimeout(() => process.exit(1), 5000);
+    };
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   } else {
     const server = createServer();
     const transport = new StdioServerTransport();

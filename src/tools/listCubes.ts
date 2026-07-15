@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG, LINDAS_VOCAB } from "../config.js";
 import {
   buildListCubesQuery,
 } from "../sparql/queryBuilder.js";
@@ -14,6 +14,13 @@ export const listCubesToolDef = {
     properties: {
       limit: { type: "integer", default: 20, minimum: 1, maximum: 100 },
       offset: { type: "integer", default: 0, minimum: 0 },
+      language: { type: "string", default: "de", enum: ["de", "fr", "it", "en"] },
+      status: {
+        type: "string",
+        default: "Published",
+        enum: ["Published", "Draft", "all"],
+        description: "Filter by publication status: 'Published' (default), 'Draft', or 'all' to include everything",
+      },
     },
   },
 };
@@ -25,14 +32,17 @@ export async function handleListCubes(args: any): Promise<string> {
       CONFIG.maxResultLimit
     );
     const offset = Math.max(args?.offset ?? 0, 0);
+    const language = args?.language ?? CONFIG.defaultLanguage;
+    const statusParam = args?.status ?? "Published";
+    const statusFilter = statusParam === "all" ? undefined : LINDAS_VOCAB[`status${statusParam}` as keyof typeof LINDAS_VOCAB] ?? undefined;
 
     process.stderr.write(
-      `[LINDAS-MCP] INFO  list_cubes limit=${limit} offset=${offset}\n`
+      `[LINDAS-MCP] INFO  list_cubes limit=${limit} offset=${offset} lang=${language} status=${statusParam}\n`
     );
 
     const start = Date.now();
     const result = await executeSparqlQuery(
-      buildListCubesQuery(limit, offset)
+      buildListCubesQuery(limit, offset, language, statusFilter)
     );
     const elapsed = Date.now() - start;
     const cubes = parseCubes(result);
