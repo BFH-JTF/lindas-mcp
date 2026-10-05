@@ -1,7 +1,7 @@
 services:
   lindas-mcp:
-    build: ./lindas-mcp
-    # image: lindas-mcp
+    # build: ./lindas-mcp
+    image: lindas-mcp
     container_name: lindas-mcp
     ports:
       - "8000:8000"

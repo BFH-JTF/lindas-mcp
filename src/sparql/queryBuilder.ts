@@ -35,6 +35,24 @@ function isIri(value: string): boolean {
   return value.startsWith("http");
 }
 
+function isNumeric(value: string): boolean {
+  return /^-?\d+(\.\d+)?$/.test(value);
+}
+
+function formatFilterPattern(filterVar: string, filter: ObservationFilter): string {
+  if (isIri(filter.value)) {
+    return `FILTER(${filterVar} ${filter.operator} <${escapeUri(filter.value)}>)`;
+  }
+  if (isNumeric(filter.value)) {
+    const escaped = escapeSparqlLiteral(filter.value);
+    if (filter.operator === "=" || filter.operator === "!=") {
+      return `FILTER(STR(${filterVar}) ${filter.operator} "${escaped}")`;
+    }
+    return `FILTER(xsd:integer(STR(${filterVar})) ${filter.operator} ${escaped})`;
+  }
+  return `FILTER(${filterVar} ${filter.operator} "${escapeSparqlLiteral(filter.value)}")`;
+}
+
 function shortName(uri: string): string {
   const match = uri.match(/[/#]([^/#]+)$/);
   return match ? match[1] : uri;
@@ -147,12 +165,7 @@ export function buildQueryObservationsQuery(
       filterVar = `?filter_${i}`;
       patterns.push(`?obs <${safePath}> ${filterVar} .`);
     }
-    const safeValue = isIri(filter.value)
-      ? `<${escapeUri(filter.value)}>`
-      : `"${escapeSparqlLiteral(filter.value)}"`;
-    patterns.push(
-      `FILTER(${filterVar} ${filter.operator} ${safeValue})`
-    );
+    patterns.push(formatFilterPattern(filterVar, filter));
   });
 
   return `${prefixBlock()}
@@ -181,12 +194,7 @@ export function buildCountObservationsQuery(
       pathToVar.set(filter.dimension, filterVar);
       patterns.push(`?obs <${safePath}> ${filterVar} .`);
     }
-    const safeValue = isIri(filter.value)
-      ? `<${escapeUri(filter.value)}>`
-      : `"${escapeSparqlLiteral(filter.value)}"`;
-    patterns.push(
-      `FILTER(${filterVar} ${filter.operator} ${safeValue})`
-    );
+    patterns.push(formatFilterPattern(filterVar, filter));
   });
 
   return `${prefixBlock()}
@@ -383,10 +391,7 @@ export function buildCountByDimensionQuery(
       pathToVar.set(filter.dimension, filterVar);
       patterns.push(`?obs <${safePath}> ${filterVar} .`);
     }
-    const safeValue = isIri(filter.value)
-      ? `<${escapeUri(filter.value)}>`
-      : `"${escapeSparqlLiteral(filter.value)}"`;
-    patterns.push(`FILTER(${filterVar} ${filter.operator} ${safeValue})`);
+    patterns.push(formatFilterPattern(filterVar, filter));
   });
 
   return `${prefixBlock()}
